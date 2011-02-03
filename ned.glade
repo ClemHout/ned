@@ -315,6 +315,58 @@
                                 <property name="homogeneous">True</property>
                               </packing>
                             </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton17">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton17</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-goto-top</property>
+                                <signal name="clicked" handler="addFstRow"/>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton18">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton18</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-goto-bottom</property>
+                                <signal name="clicked" handler="addLstRow"/>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton19">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton19</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-goto-first</property>
+                                <signal name="clicked" handler="addFstCol"/>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton20">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton20</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-goto-last</property>
+                                <signal name="clicked" handler="addLstCol"/>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
                           </widget>
                           <packing>
                             <property name="expand">False</property>
@@ -379,6 +431,32 @@
                                 <property name="label" translatable="yes">toolbutton7</property>
                                 <property name="use_underline">True</property>
                                 <property name="stock_id">gtk-select-color</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton15">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton15</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-media-previous</property>
+                                <signal name="clicked" handler="previousSpriteZone"/>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton16">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton16</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-media-next</property>
+                                <signal name="clicked" handler="nextSpriteZone"/>
                               </widget>
                               <packing>
                                 <property name="expand">False</property>

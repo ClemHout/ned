@@ -158,6 +158,11 @@ NEWFILE_CHOOSER = 'dialog1'
 ROM = 'rom'
 DUMP = 'dump'
 
+FSTROW = 0
+LSTROW = 1
+FSTCOL = 2
+LSTCOL = 3
+
 TARGET_TYPE_PLACEHOLDER = 80
 TARGET_TYPE_TRASH = 81
 from_image = [ ( "text/plain", 0, TARGET_TYPE_PLACEHOLDER ),
@@ -177,6 +182,10 @@ class GTKeditor:
         self.filechooser = gtk.glade.XML(GLADE_FILE, FILE_CHOOSER)
         self.newfilechooser = gtk.glade.XML(GLADE_FILE, NEWFILE_CHOOSER)
         self.nesrom = None
+        self.currentZone = 0
+        self.scale=6
+        self.perline = 10
+        self.length=10
         # initialize events
         events = {
             # for menu:
@@ -185,17 +194,22 @@ class GTKeditor:
             'saveDumpFile': self.saveDumpFile,
             'importRom': self.importRom,
             'exportRom': self.exportRom,
-            'exportImage': self.notImplemented ,
+            'exportImage': self.exportImage ,
             'exportAllImages': self.notImplemented ,
             'importImage': self.notImplemented ,
             'importAllImages': self.notImplemented ,
-            'zoom': self.notImplemented ,
-            'dezoom': self.notImplemented ,
-            'colors': self.notImplemented ,
             'about': self.notImplemented ,
-            # for puzzle buttons
+            # for puzzle list buttons
             'newPuzzle': self.newPuzzle ,
             'deletePuzzle' : self.deletePuzzle ,
+            # for puzzle area buttons
+            'addFstRow' : self.addFstRow ,
+            'addLstRow' : self.addLstRow ,
+            'addFstCol' : self.addFstCol ,
+            'addLstCol' : self.addLstCol ,
+            # for sprite area buttons
+            'previousSpriteZone' : self.previousSpriteZone,
+            'nextSpriteZone' : self.nextSpriteZone,
             # for file dialog:
             'closeOpenDialog' : self.closeOpenDialog ,
             'closeSaveDialog' : self.closeSaveDialog ,
@@ -233,6 +247,40 @@ class GTKeditor:
         gtk.main_quit()
         print "exiting"
 
+    # previous spritezone callback
+    def previousSpriteZone(self, source=None, event=None):
+        # BOUUUUH UGLY
+        try:
+            self.currentZone = self.currentZone - (self.perline * self.length)
+            self.displaySpritZone()
+        except NameError:
+            pass
+
+    # next spritezone callback
+    def nextSpriteZone(self, source=None, event=None):
+        # BOUUUUH UGLY
+        try:
+            self.currentZone = self.currentZone + (self.perline * self.length)
+            self.displaySpritZone()
+        except NameError:
+            pass
+
+    # new first Row callback
+    def addFstRow(self, source=None, event=None):
+        self.extendCurrentPuzzle(FSTROW)
+
+    # new last Row callback
+    def addLstRow(self, source=None, event=None):
+        self.extendCurrentPuzzle(LSTROW)
+
+    # new first Col callback
+    def addFstCol(self, source=None, event=None):
+        self.extendCurrentPuzzle(FSTCOL)
+
+    # new last Col callback
+    def addLstCol(self, source=None, event=None):
+        self.extendCurrentPuzzle(LSTCOL)
+
     # new Puzzle callback
     def newPuzzle(self, source=None, event=None):
         if self.nesrom == None:
@@ -250,16 +298,22 @@ class GTKeditor:
 
     # delete puzzle callback
     def deletePuzzle(self, source=None, event=None):
-        treeview = self.mainwindow.get_widget(PUZZLE_LIST)
-        puzzlename = self.getTreeviewSelected(treeview)
-        # update nesrom
-        del self.nesrom.puzzles[puzzlename]
-        # update treeview
-        self.putListInTreeview(treeview, self.nesrom.puzzles.keys(), 'Puzzles')
-        # update puzzlearea
-        puzzlearea = self.mainwindow.get_widget(PUZZLE_AREA)
-        for child in puzzlearea.get_children():
-            puzzlearea.remove(child)
+        if self.nesrom == None:
+            self.outputmsg('error: open dump or load Rom first')
+        else:
+            treeview = self.mainwindow.get_widget(PUZZLE_LIST)
+            puzzlename = self.getTreeviewSelected(treeview)
+            if puzzlename == None:
+                self.outputmsg('error: can\'t delete puzzle if none is selected')
+            else:
+                # update nesrom
+                del self.nesrom.puzzles[puzzlename]
+                # update treeview
+                self.putListInTreeview(treeview, self.nesrom.puzzles.keys(), 'Puzzles')
+                # update puzzlearea
+                puzzlearea = self.mainwindow.get_widget(PUZZLE_AREA)
+                for child in puzzlearea.get_children():
+                    puzzlearea.remove(child)
 
     # Open Dump File callback TODO - continue
     def openDumpFile(self, source=None, event=None):
@@ -290,6 +344,15 @@ class GTKeditor:
             self.newfilechooser.filetype = ROM
             self.outputmsg('choose a rom file')
             self.newfilechooser.get_widget(NEWFILE_CHOOSER).show()
+
+    # export image callback
+    def exportImage(self, source=None, event=None):
+        treeview = self.mainwindow.get_widget(PUZZLE_LIST)
+        puzzlename = self.getTreeviewSelected(treeview)
+        if self.nesrom == None or puzzlename == None:
+            self.outputmsg('should select something first...')
+        else:
+            print 'currently being implemented'
 
 # TODO : deprecated
     # Open File dialog callback
@@ -378,24 +441,8 @@ class GTKeditor:
         puzzlelayout = self.mainwindow.get_widget(PUZZLE_AREA)
         for child in puzzlelayout.get_children():
             puzzlelayout.remove(child)
-        # TODO -> move to printSpritsFromDumpFile
-        spritlayout = self.mainwindow.get_widget(SPRITE_AREA)
-        scale=6
-        perline = 8
-        offset = self.nesrom.get_offset()
-        minspr = offset
-        maxspr = min(minspr+100, len(self.nesrom.sprList))
-        spritlayout.set_size(perline*scale*8,
-            (maxspr-minspr)*8*scale/perline)
-        for sprnum in range(minspr, maxspr):
-            eventbox = gtk.EventBox()
-            pixbuf = self.putSprInWidget(eventbox, sprnum, scale)
-            self.setSourceWidget(eventbox, sprnum, pixbuf, to_image)
-            index = sprnum - minspr
-            spritlayout.put(eventbox,
-                            8*scale*(index - perline*(index/perline)),
-                            scale*8*(index/perline))
-        spritlayout.show_all()
+        self.displaySpritZone()
+
 
     # Callback to display current puzzle
     def displayCurrentPuzzle(self, treeview):
@@ -406,17 +453,24 @@ class GTKeditor:
         for child in puzzlearea.get_children():
             puzzlearea.remove(child)
             #child.destroy()
-        scale=6
-        width = scale*8*len(currentpuzzle[0])
-        height = scale*8*len(currentpuzzle)
+        width = self.scale*8*len(currentpuzzle[0])
+        height = self.scale*8*len(currentpuzzle)
         puzzlearea.set_size(width, height)
         for i,line in enumerate(currentpuzzle):
             for j, sprnum in enumerate(line):
                 if 0<sprnum<len(self.nesrom.sprList):
-                    self.displaySprite(puzzlearea, sprnum, scale, scale*8*j, scale*8*i,
+                    self.displaySprite(puzzlearea,
+                                        sprnum,
+                                        self.scale,
+                                        self.scale*8*j,
+                                        self.scale*8*i,
                                         True, i, j, puzzlename, from_image)
                 else:
-                    self.displaySprite(puzzlearea, sprnum, scale, scale*8*j, scale*8*i,
+                    self.displaySprite(puzzlearea,
+                                        sprnum,
+                                        self.scale,
+                                        self.scale*8*j,
+                                        self.scale*8*i,
                                         False, i, j, puzzlename, from_image)
         puzzlearea.show_all()
 
@@ -484,6 +538,60 @@ class GTKeditor:
     ######################
     # Displaying methods #
     ######################
+
+    def extendCurrentPuzzle(self, flag):
+        if self.nesrom == None:
+            self.outputmsg('error: open dump or load Rom first')
+        else:
+            treeview = self.mainwindow.get_widget(PUZZLE_LIST)
+            puzzlename = self.getTreeviewSelected(treeview)
+            if puzzlename == None:
+                self.outputmsg('error: can\'t add row to puzzle if none is selected')
+            else:
+                currentpuzzle = self.nesrom.puzzles[puzzlename] 
+                if flag == FSTROW:
+                    self.nesrom.puzzles[puzzlename] = ([[-1]* len(currentpuzzle[0])] +
+                                                        currentpuzzle)
+                elif flag == LSTROW:
+                    self.nesrom.puzzles[puzzlename] = (currentpuzzle +
+                                                        [[-1]* len(currentpuzzle[0])])
+                elif flag == FSTCOL:
+                    for i,line in enumerate(currentpuzzle):
+                        currentpuzzle[i] = [-1] + line
+                else: # flag == LSTCOL:
+                    for i,line in enumerate(currentpuzzle):
+                        currentpuzzle[i] = line + [-1]
+                self.displayCurrentPuzzle(self.mainwindow.get_widget(PUZZLE_LIST))
+
+
+
+    # print SpritZone
+    def displaySpritZone(self):
+        # variables to be modified later...
+        offset = self.nesrom.get_offset()
+        # get the spritlayout
+        spritlayout = self.mainwindow.get_widget(SPRITE_AREA)
+        # delete everything in it !
+        for child in spritlayout.get_children():
+            spritlayout.remove(child)
+        # initialize size variables
+        if (self.currentZone < offset or
+                self.currentZone> len(self.nesrom.sprList)):
+            self.currentZone = offset
+        maxspr = min(self.currentZone+self.length*self.perline, len(self.nesrom.sprList))
+        spritlayout.set_size(self.perline*self.scale*8,
+            (maxspr-self.currentZone)*8*self.scale/self.perline)
+        # now let's draw !
+        for sprnum in range(self.currentZone, maxspr):
+            eventbox = gtk.EventBox()
+            pixbuf = self.putSprInWidget(eventbox, sprnum, self.scale)
+            self.setSourceWidget(eventbox, sprnum, pixbuf, to_image)
+            index = sprnum - self.currentZone
+            spritlayout.put(eventbox,
+                            8*self.scale*(index - self.perline*(index/self.perline)),
+                            self.scale*8*(index/self.perline))
+        spritlayout.show_all()
+
 
     # write a list in a Treeview Widget
     def putListInTreeview(self, treeview, mylist, title,
