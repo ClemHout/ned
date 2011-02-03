@@ -157,6 +157,7 @@ NEWFILE_CHOOSER = 'dialog1'
 
 ROM = 'rom'
 DUMP = 'dump'
+PNG = 'png'
 
 FSTROW = 0
 LSTROW = 1
@@ -352,7 +353,9 @@ class GTKeditor:
         if self.nesrom == None or puzzlename == None:
             self.outputmsg('should select something first...')
         else:
-            print 'currently being implemented'
+            self.newfilechooser.filetype = PNG
+            self.outputmsg('choose a png file')
+            self.newfilechooser.get_widget(NEWFILE_CHOOSER).show()
 
 # TODO : deprecated
     # Open File dialog callback
@@ -387,7 +390,7 @@ class GTKeditor:
         filename = filerep + '/' + name
 
         if name == '':
-            self.outputmsg('Provide Name Pliz')
+            self.outputmsg('Provide ame please')
 
         elif os.path.exists(filename):
             self.outputmsg('File exists!')
@@ -402,6 +405,20 @@ class GTKeditor:
             with open(filename, 'w') as f:
                 for line in self.nesrom.sprList:
                     f.write(line)
+
+        elif filetype == PNG:
+            treeview = self.mainwindow.get_widget(PUZZLE_LIST)
+            puzzlename = self.getTreeviewSelected(treeview)
+            if self.nesrom == None or puzzlename == None:
+                self.outputmsg('should select something first...')
+            else:
+                if filename[-4:] == '.png':
+                    image = self.puzzle_to_image(self.nesrom.puzzles[puzzlename], scale=1)
+                    image.save(filename)
+                    self.outputmsg('image saved to '+filename)
+                else:
+                    self.outputmsg('error: filname must end with ".png"')
+            
 
 
     # Open File callback -> when filechooser clicked 'ok'
