@@ -34,6 +34,9 @@ import gobject
 
 COLOR = [(242, 241, 240), (0, 0, 255), (0, 255, 0), (255, 0, 0)]
 
+PKG_SIZE = 1024
+CHR_SIZE = 512
+
 ###############
 # CONVERSIONS #
 ###############
@@ -127,6 +130,13 @@ class Nesrom:
                 self.sprList.append(buffer)
                 buffer=f.read(16)
 
+    def get_offset(self):
+        if self.sprList == []:
+            return 0
+        else:
+            return (PKG_SIZE *
+                string.atoi(binascii.b2a_hex(self.sprList[0][4]), base=16))+1
+
 ######################
 # GTK contants       #
 ######################
@@ -185,7 +195,7 @@ class GTKeditor:
             'about': self.notImplemented ,
             # for puzzle buttons
             'newPuzzle': self.newPuzzle ,
-            'deletePuzzle' : self.notImplemented ,
+            'deletePuzzle' : self.deletePuzzle ,
             # for file dialog:
             'closeOpenDialog' : self.closeOpenDialog ,
             'closeSaveDialog' : self.closeSaveDialog ,
@@ -237,6 +247,19 @@ class GTKeditor:
             # puts puzzle list in treeview
             treeview1 = self.mainwindow.get_widget(PUZZLE_LIST)
             self.putListInTreeview(treeview1, self.nesrom.puzzles.keys(), 'Puzzles')
+
+    # delete puzzle callback
+    def deletePuzzle(self, source=None, event=None):
+        treeview = self.mainwindow.get_widget(PUZZLE_LIST)
+        puzzlename = self.getTreeviewSelected(treeview)
+        # update nesrom
+        del self.nesrom.puzzles[puzzlename]
+        # update treeview
+        self.putListInTreeview(treeview, self.nesrom.puzzles.keys(), 'Puzzles')
+        # update puzzlearea
+        puzzlearea = self.mainwindow.get_widget(PUZZLE_AREA)
+        for child in puzzlearea.get_children():
+            puzzlearea.remove(child)
 
     # Open Dump File callback TODO - continue
     def openDumpFile(self, source=None, event=None):
@@ -344,6 +367,10 @@ class GTKeditor:
                             str(len(self.nesrom.sprList)) +
                             'sprites found')
 
+        ######################################################
+        # This last part of the function displays the nesrom #
+        ######################################################
+
         # puts puzzle list in treeview
         treeview1 = self.mainwindow.get_widget(PUZZLE_LIST)
         self.putListInTreeview(treeview1, self.nesrom.puzzles.keys(), 'Puzzles')
@@ -355,14 +382,16 @@ class GTKeditor:
         spritlayout = self.mainwindow.get_widget(SPRITE_AREA)
         scale=6
         perline = 8
-        offset = 2049
+        offset = self.nesrom.get_offset()
+        minspr = offset
+        maxspr = min(minspr+100, len(self.nesrom.sprList))
         spritlayout.set_size(perline*scale*8,
-            (len(self.nesrom.sprList)-offset)*8*scale/perline)
-        for sprnum in range(offset,len(self.nesrom.sprList)):
+            (maxspr-minspr)*8*scale/perline)
+        for sprnum in range(minspr, maxspr):
             eventbox = gtk.EventBox()
             pixbuf = self.putSprInWidget(eventbox, sprnum, scale)
             self.setSourceWidget(eventbox, sprnum, pixbuf, to_image)
-            index = sprnum - offset
+            index = sprnum - minspr
             spritlayout.put(eventbox,
                             8*scale*(index - perline*(index/perline)),
                             scale*8*(index/perline))
