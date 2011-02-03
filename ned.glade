@@ -155,49 +155,6 @@
               </widget>
             </child>
             <child>
-              <widget class="GtkMenuItem" id="menuitem3">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">_Affichage</property>
-                <property name="use_underline">True</property>
-                <child>
-                  <widget class="GtkMenu" id="menu4">
-                    <property name="visible">True</property>
-                    <property name="ubuntu_local">True</property>
-                    <child>
-                      <widget class="GtkImageMenuItem" id="Dezoom">
-                        <property name="label">gtk-zoom-out</property>
-                        <property name="visible">True</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                        <property name="always_show_image">True</property>
-                        <signal name="activate" handler="dezoom"/>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkImageMenuItem" id="Zoom">
-                        <property name="label">gtk-zoom-in</property>
-                        <property name="visible">True</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                        <property name="always_show_image">True</property>
-                        <signal name="activate" handler="zoom"/>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkImageMenuItem" id="imagemenuitem11">
-                        <property name="label">gtk-select-color</property>
-                        <property name="visible">True</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                        <property name="always_show_image">True</property>
-                        <signal name="activate" handler="colors"/>
-                      </widget>
-                    </child>
-                  </widget>
-                </child>
-              </widget>
-            </child>
-            <child>
               <widget class="GtkMenuItem" id="menuitem4">
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">Aid_e</property>
@@ -300,40 +257,144 @@
                   <widget class="GtkHPaned" id="hpaned2">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="position">150</property>
-                    <property name="position_set">True</property>
                     <child>
-                      <widget class="GtkScrolledWindow" id="scrolledwindow1">
+                      <widget class="GtkVBox" id="vbox6">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="hscrollbar_policy">automatic</property>
-                        <property name="vscrollbar_policy">automatic</property>
                         <child>
-                          <widget class="GtkLayout" id="layout1">
+                          <widget class="GtkScrolledWindow" id="scrolledwindow1">
                             <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="hscrollbar_policy">automatic</property>
+                            <property name="vscrollbar_policy">automatic</property>
+                            <child>
+                              <widget class="GtkLayout" id="layout1">
+                                <property name="visible">True</property>
+                              </widget>
+                            </child>
                           </widget>
+                          <packing>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkToolbar" id="toolbar2">
+                            <property name="visible">True</property>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton3">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton3</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-zoom-in</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton4">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton4</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-zoom-out</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton7">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton7</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-select-color</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                          </widget>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="position">1</property>
+                          </packing>
                         </child>
                       </widget>
                       <packing>
                         <property name="resize">False</property>
-                        <property name="shrink">True</property>
+                        <property name="shrink">False</property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkScrolledWindow" id="scrolledwindow2">
+                      <widget class="GtkVBox" id="vbox5">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="hscrollbar_policy">automatic</property>
-                        <property name="vscrollbar_policy">automatic</property>
                         <child>
-                          <widget class="GtkLayout" id="layout2">
+                          <widget class="GtkScrolledWindow" id="scrolledwindow2">
                             <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="hscrollbar_policy">automatic</property>
+                            <property name="vscrollbar_policy">automatic</property>
+                            <child>
+                              <widget class="GtkLayout" id="layout2">
+                                <property name="visible">True</property>
+                              </widget>
+                            </child>
                           </widget>
+                          <packing>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkToolbar" id="toolbar3">
+                            <property name="visible">True</property>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton5">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton3</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-zoom-in</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton6">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton4</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-zoom-out</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkToolButton" id="toolbutton14">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">toolbutton7</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-select-color</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
+                          </widget>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="position">1</property>
+                          </packing>
                         </child>
                       </widget>
                       <packing>
-                        <property name="resize">True</property>
-                        <property name="shrink">True</property>
+                        <property name="resize">False</property>
+                        <property name="shrink">False</property>
                       </packing>
                     </child>
                   </widget>
