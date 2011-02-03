@@ -88,7 +88,7 @@ def bst2hst(bstr):
 
 # conversion from hex string to 8x8 sprite
 def spr2hst(spr):
-	return bst2hst(spr2bst(spr))
+    return bst2hst(spr2bst(spr))
 
 # conversion from 8x8 sprite to hex string
 def bin2spr(buffer):
@@ -139,13 +139,14 @@ SPRITE_AREA = 'layout2'
 GLADE_FILE = 'ned.glade'
 STATUS_BAR = 'statusbar3'
 TRASH = 'scrolledwindow2'
+SAVEFILEENTRY = 'entry1'
+SAVEREP = 'filechooserbutton1'
 
 FILE_CHOOSER = 'filechooserdialog1'
+NEWFILE_CHOOSER = 'dialog1'
 
-ROM_OPEN = 'rom_open'
-ROM_SAVE = 'rom_save'
-DUMP_OPEN = 'dump_open'
-DUMP_SAVE = 'dump_save'
+ROM = 'rom'
+DUMP = 'dump'
 
 TARGET_TYPE_PLACEHOLDER = 80
 TARGET_TYPE_TRASH = 81
@@ -164,8 +165,9 @@ class GTKeditor:
     def __init__(self):
         self.mainwindow = gtk.glade.XML(GLADE_FILE, MAIN_WINDOW)
         self.filechooser = gtk.glade.XML(GLADE_FILE, FILE_CHOOSER)
+        self.newfilechooser = gtk.glade.XML(GLADE_FILE, NEWFILE_CHOOSER)
         self.nesrom = None
-    	# initialize events
+        # initialize events
         events = {
             # for menu:
             'delete': self.quit,
@@ -185,13 +187,21 @@ class GTKeditor:
             'newPuzzle': self.newPuzzle ,
             'deletePuzzle' : self.notImplemented ,
             # for file dialog:
-            'closeFileDialog' : self.closeFileDialog ,
+            'closeOpenDialog' : self.closeOpenDialog ,
+            'closeSaveDialog' : self.closeSaveDialog ,
             'openfile' : self.openfile,
+            'savefile' : self.savefile,
             # for clicking on puzzle treeview:
             'displayPuzzle' : self.displayCurrentPuzzle,
             }
         self.mainwindow.signal_autoconnect(events)
+        self.newfilechooser.signal_autoconnect(events)
         self.filechooser.signal_autoconnect(events)
+        # avoid to destroy the FC when the WM deletes it
+        fc = self.filechooser.get_widget(FILE_CHOOSER)
+        fc.connect('delete-event', fc.hide_on_delete)
+        nfc = self.newfilechooser.get_widget(NEWFILE_CHOOSER)
+        nfc.connect('delete-event', nfc.hide_on_delete)
         # initialize trasharea as trash receiver
         trasharea = self.mainwindow.get_widget(TRASH)
         trasharea.connect('drag_data_received', self.getImage)
@@ -230,27 +240,33 @@ class GTKeditor:
 
     # Open Dump File callback TODO - continue
     def openDumpFile(self, source=None, event=None):
-        self.filechooser.filetype = DUMP_OPEN
-        self.outputmsg('choose a dump file')
-        self.filechooser.get_widget(FILE_CHOOSER).show()
-
-    # Save Dump File callback TODO - continue
-    def saveDumpFile(self, source=None, event=None):
-        self.filechooser.filetype = DUMP_SAVE
+        self.filechooser.filetype = DUMP
         self.outputmsg('choose a dump file')
         self.filechooser.get_widget(FILE_CHOOSER).show()
 
     # import ROM callback
     def importRom(self, source=None, event=None):
-        self.filechooser.filetype = ROM_OPEN
+        self.filechooser.filetype = ROM
         self.outputmsg('choose a rom file')
         self.filechooser.get_widget(FILE_CHOOSER).show()
 
+    # Save Dump File callback TODO - continue
+    def saveDumpFile(self, source=None, event=None):
+        if self.nesrom == None:
+            self.outputmsg('Nothing to save...')
+        else:
+            self.newfilechooser.filetype = DUMP
+            self.outputmsg('choose a dump file')
+            self.newfilechooser.get_widget(NEWFILE_CHOOSER).show()
+
     # export ROM callback
     def exportRom(self, source=None, event=None):
-        self.filechooser.filetype = ROM_SAVE
-        self.outputmsg('choose a rom file')
-        self.filechooser.get_widget(FILE_CHOOSER).show()
+        if self.nesrom == None:
+            self.outputmsg('Nothing to save...')
+        else:
+            self.newfilechooser.filetype = ROM
+            self.outputmsg('choose a rom file')
+            self.newfilechooser.get_widget(NEWFILE_CHOOSER).show()
 
 # TODO : deprecated
     # Open File dialog callback
@@ -259,8 +275,12 @@ class GTKeditor:
 #        self.filechooser.get_widget(FILE_CHOOSER).show()
 
     # Close File dialog callback
-    def closeFileDialog(self, source=None, event=None):
+    def closeOpenDialog(self, source=None, event=None):
         self.filechooser.get_widget(FILE_CHOOSER).hide()
+
+    # Close Save dialog callback
+    def closeSaveDialog(self, source=None, event=None):
+        self.newfilechooser.get_widget(NEWFILE_CHOOSER).hide()
 
     # callback when the treeview is edited
     def treeview_edited(self, cellrenderedtext, path, newtext, liststore, column):
@@ -272,25 +292,40 @@ class GTKeditor:
             liststore[path][column] = newtext
             self.displayCurrentPuzzle(self.mainwindow.get_widget(PUZZLE_LIST))
 
-    # Open File callback -> when filechooser clicked 'ok'
-    def openfile(self, source=None, event=None):
-        self.closeFileDialog()
-        filetype = self.filechooser.filetype
-        filename = self.filechooser.get_widget(FILE_CHOOSER).get_filename()
+    # Save file callback
+    def savefile(self, source=None, event=None):
+        self.closeSaveDialog()
+        filetype = self.newfilechooser.filetype
+        name = self.newfilechooser.get_widget(SAVEFILEENTRY).get_text()
+        filerep = self.newfilechooser.get_widget(SAVEREP).get_filename()
+        filename = filerep + '/' + name
+
+        if name == '':
+            self.outputmsg('Provide Name Pliz')
+
+        elif os.path.exists(filename):
+            self.outputmsg('File exists!')
 
         # save dump file
-        if filetype == DUMP_SAVE:
-            with open(filename, 'r') as f:
-                pickle.dump(f, self.nesrom)
+        elif filetype == DUMP:
+            with open(filename, 'w') as f:
+                pickle.dump(self.nesrom, f)
 
         # export rom
-        elif filetype == ROM_SAVE:
+        elif filetype == ROM:
             with open(filename, 'w') as f:
                 for line in self.nesrom.sprList:
                     f.write(line)
 
+
+    # Open File callback -> when filechooser clicked 'ok'
+    def openfile(self, source=None, event=None):
+        self.closeOpenDialog()
+        filetype = self.filechooser.filetype
+        filename = self.filechooser.get_widget(FILE_CHOOSER).get_filename()
+
         # open dump file
-        elif filetype == DUMP_OPEN:
+        if filetype == DUMP:
             # TODO -> move to initFromDumpFile
             with open(filename, 'r') as f:
                 self.nesrom = pickle.load(f)
@@ -300,7 +335,7 @@ class GTKeditor:
                             'puzzles found')
 
         # open rom
-        elif filetype == ROM_OPEN:
+        elif filetype == ROM:
             # construct new rom
             self.nesrom = Nesrom()
             self.nesrom.import_rom(filename)

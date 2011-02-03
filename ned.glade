@@ -380,7 +380,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="clicked" handler="closeFileDialog"/>
+                <signal name="clicked" handler="closeOpenDialog"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -454,16 +454,22 @@
               </packing>
             </child>
             <child>
-              <widget class="GtkFileChooserWidget" id="filechooserwidget1">
+              <widget class="GtkFileChooserButton" id="filechooserbutton1">
                 <property name="visible">True</property>
-                <property name="orientation">vertical</property>
+                <property name="action">select-folder</property>
+                <property name="do_overwrite_confirmation">True</property>
+                <property name="title" translatable="yes">Sélectionner un répertoire</property>
               </widget>
               <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
                 <property name="position">1</property>
               </packing>
             </child>
           </widget>
           <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
             <property name="position">1</property>
           </packing>
         </child>
@@ -477,6 +483,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <signal name="clicked" handler="closeSaveDialog"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -490,6 +497,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <signal name="clicked" handler="savefile"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -505,6 +513,11 @@
           </packing>
         </child>
       </widget>
+    </child>
+  </widget>
+  <widget class="GtkWindow" id="window2">
+    <child>
+      <placeholder/>
     </child>
   </widget>
 </glade-interface>
