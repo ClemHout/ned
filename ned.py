@@ -24,7 +24,7 @@ import os
 import subprocess
 import Image
 import random
-import StringIO
+import cStringIO
 
 import pygtk
 pygtk.require("2.0")
@@ -100,8 +100,20 @@ def bin2spr(buffer):
 def spr2bin(spr):
     return binascii.a2b_hex(spr2hst(spr))
 
+def spr2image(spr, scale=1):
+    im = Image.new('RGB',(8,8))
+    pix = im.load()
+    for x,line in enumerate(spr):
+        for y,pixel in enumerate(line):
+    #for a in range(scale):
+    #    for b in range(scale):
+            pix[y,x] = COLOR[pixel]
+    im2 = im.resize((scale*8,scale*8), Image.NEAREST)
+    return im2
+ 
+
 def image_to_pixbuf (image):
-    file = StringIO.StringIO ()
+    file = cStringIO.StringIO ()
     image.save (file, 'ppm')
     contents = file.getvalue()
     file.close ()
@@ -111,6 +123,8 @@ def image_to_pixbuf (image):
     loader.close ()
     return pixbuf
 
+def spr2pixbuf(spr, scale=1):
+    return image_to_pixbuf(spr2image(spr, scale)) 
 
 ######################
 # Class for files    #
@@ -651,16 +665,22 @@ class GTKeditor:
     # Print a sprite in a Widget (usually an EventBox)
     def putSprInWidget(self, eventbox, sprnum, scale=1):
         gtkimage = gtk.Image()
-        pixbuf = image_to_pixbuf(self.puzzle_to_image([[sprnum]], scale))
+        #pixbuf = image_to_pixbuf(self.puzzle_to_image([[sprnum]], scale))
+        if 0<=sprnum<len(self.nesrom.sprList):
+            pixbuf = spr2pixbuf(bin2spr(self.nesrom.sprList[sprnum]), scale)
+        else:
+            pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, True, 8, 8*scale, 8*scale)
+            pixbuf.fill(int('00000022', 16))
         gtkimage.set_from_pixbuf(pixbuf)
         eventbox.add(gtkimage)
         return pixbuf
 
     # Turns a puzzle into an Image
+    # only used to save puzzles !
     def puzzle_to_image(self,puzzle, scale=1):
         width, height = len(puzzle[0]), len(puzzle)
         # save to temp file
-        im = Image.new('RGB',(scale*8*width,scale*8*height))
+        im = Image.new('RGB',(8*width,8*height))
         pix = im.load()
         for i,sprLine in enumerate(puzzle):
             for j,sprnumber in enumerate(sprLine):
@@ -668,10 +688,9 @@ class GTKeditor:
                     for x,line in enumerate(
                         bin2spr(self.nesrom.sprList[sprnumber])):
                         for y,pixel in enumerate(line):
-                            for a in range(scale):
-                                for b in range(scale):
-                                    pix[a+scale*(8*j+y),b+scale*(8*i+x)] = COLOR[pixel]
-        return im
+                            pix[(8*j+y),(8*i+x)] = COLOR[pixel]
+        im2 = im.resize((8*scale*width,8*scale*height), Image.NEAREST)
+        return im2
 
     # Displays a sprite in a widget
     def displaySprite(self, puzzlearea, sprnum, scale, x, y, 
@@ -692,3 +711,13 @@ class GTKeditor:
 if __name__ == '__main__':
     app = GTKeditor()
     gtk.main()
+
+# for benchmarks
+#    nesrom = Nesrom()
+#    nesrom.import_rom('mario2.nes')
+#    print len(nesrom.sprList)
+##    for binspr in nesrom.sprList:
+#    binspr = nesrom.sprList[2049]
+#    spr = bin2spr(binspr)
+#    pixbuf = spr2pixbuf(spr, 6)
+#    pa = pixbuf.get_pixels_array
