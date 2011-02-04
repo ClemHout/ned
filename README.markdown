@@ -8,3 +8,6 @@ side panel allows you to manipulate puzzles. You can then drag and drop
 sprites from the left-hand side panel to your puzzles (and vice-versa). Once
 you are done, you can dump the rom plus puzzles to a dump file so that you can
 reload it later.
+
+![ned screenshot](https://github.com/ClemHout/ned/raw/master/screenshot.png "ned screenshot")
+
