@@ -32,6 +32,7 @@ import gtk
 import gtk.glade
 import gobject
 
+GTKCOLOR = ['#000000', '#0000FF', '#00FF00', '#FF0000']
 COLOR = [(242, 241, 240), (0, 0, 255), (0, 255, 0), (255, 0, 0)]
 
 PKG_SIZE = 1024
@@ -114,10 +115,10 @@ def spr2image(spr, scale=1):
 
 def image_to_pixbuf (image):
     file = cStringIO.StringIO ()
-    image.save (file, 'ppm')
+    image.save (file, 'png')
     contents = file.getvalue()
     file.close ()
-    loader = gtk.gdk.PixbufLoader ('pnm')
+    loader = gtk.gdk.PixbufLoader ('png')
     loader.write (contents, len (contents))
     pixbuf = loader.get_pixbuf ()
     loader.close ()
@@ -165,6 +166,7 @@ STATUS_BAR = 'statusbar3'
 TRASH = 'scrolledwindow2'
 SAVEFILEENTRY = 'entry1'
 SAVEREP = 'filechooserbutton1'
+EDITBUTTON = 'toolbutton8'
 
 FILE_CHOOSER = 'filechooserdialog1'
 NEWFILE_CHOOSER = 'dialog1'
@@ -196,11 +198,29 @@ class GTKeditor:
         self.mainwindow = gtk.glade.XML(GLADE_FILE, MAIN_WINDOW)
         self.filechooser = gtk.glade.XML(GLADE_FILE, FILE_CHOOSER)
         self.newfilechooser = gtk.glade.XML(GLADE_FILE, NEWFILE_CHOOSER)
+        self.spritearea = self.mainwindow.get_widget(SPRITE_AREA)
+        self.puzzlearea = self.mainwindow.get_widget(PUZZLE_AREA)
+        self.puzzlelist_treeview = self.mainwindow.get_widget(PUZZLE_LIST)
+        self.editbutton = self.mainwindow.get_widget(EDITBUTTON)
+        self.statusbar = self.mainwindow.get_widget(STATUS_BAR)
         self.nesrom = None
+        self.cache = {}
         self.currentZone = 0
         self.scale=6
         self.perline = 10
         self.length=10
+        self.editbox = gtk.DrawingArea()
+
+        self.editbox.connect("expose-event", self.updateEditBox)
+        self.editbox.set_size_request(100,100)
+
+        self.puzzlearea.put(self.editbox, 0, 0)
+
+        # enable button events on editbox
+        self.editbox.add_events(gtk.gdk.BUTTON_PRESS_MASK | gtk.gdk.BUTTON_MOTION_MASK)
+        self.editbox.connect('button-press-event', self.editSprite)
+        self.editbox.connect('motion-notify-event', self.editSprite)
+
         # initialize events
         events = {
             # for menu:
@@ -222,6 +242,7 @@ class GTKeditor:
             'addLstRow' : self.addLstRow ,
             'addFstCol' : self.addFstCol ,
             'addLstCol' : self.addLstCol ,
+            'editModeChange' : self.editModeChange ,
             # for sprite area buttons
             'previousSpriteZone' : self.previousSpriteZone,
             'nextSpriteZone' : self.nextSpriteZone,
@@ -260,7 +281,7 @@ class GTKeditor:
     # Quit callback
     def quit(self, source=None, event=None):
         gtk.main_quit()
-        print "exiting"
+        print 'exiting'
 
     # previous spritezone callback
     def previousSpriteZone(self, source=None, event=None):
@@ -308,29 +329,27 @@ class GTKeditor:
                 newname = 'New Puzzle '+str(counter)
             self.nesrom.puzzles[newname] = [[-1]]
             # puts puzzle list in treeview
-            treeview1 = self.mainwindow.get_widget(PUZZLE_LIST)
-            self.putListInTreeview(treeview1, self.nesrom.puzzles.keys(), 'Puzzles')
+            self.updatePuzzleList()
 
     # delete puzzle callback
     def deletePuzzle(self, source=None, event=None):
         if self.nesrom == None:
             self.outputmsg('error: open dump or load Rom first')
         else:
-            treeview = self.mainwindow.get_widget(PUZZLE_LIST)
-            puzzlename = self.getTreeviewSelected(treeview)
+            puzzlename = self.getCurrentPuzzle()
             if puzzlename == None:
                 self.outputmsg('error: can\'t delete puzzle if none is selected')
             else:
                 # update nesrom
                 del self.nesrom.puzzles[puzzlename]
                 # update treeview
-                self.putListInTreeview(treeview, self.nesrom.puzzles.keys(), 'Puzzles')
+                self.updatePuzzleList()
                 # update puzzlearea
-                puzzlearea = self.mainwindow.get_widget(PUZZLE_AREA)
-                for child in puzzlearea.get_children():
-                    puzzlearea.remove(child)
+                for child in self.puzzlearea.get_children():
+                    self.puzzlearea.remove(child)
+                self.puzzlearea.put(self.editbox, 0, 0)
 
-    # Open Dump File callback TODO - continue
+    # Open Dump File callback
     def openDumpFile(self, source=None, event=None):
         self.filechooser.filetype = DUMP
         self.outputmsg('choose a dump file')
@@ -342,7 +361,7 @@ class GTKeditor:
         self.outputmsg('choose a rom file')
         self.filechooser.get_widget(FILE_CHOOSER).show()
 
-    # Save Dump File callback TODO - continue
+    # Save Dump File callback
     def saveDumpFile(self, source=None, event=None):
         if self.nesrom == None:
             self.outputmsg('Nothing to save...')
@@ -362,8 +381,7 @@ class GTKeditor:
 
     # export image callback
     def exportImage(self, source=None, event=None):
-        treeview = self.mainwindow.get_widget(PUZZLE_LIST)
-        puzzlename = self.getTreeviewSelected(treeview)
+        puzzlename = self.getCurrentPuzzle()
         if self.nesrom == None or puzzlename == None:
             self.outputmsg('should select something first...')
         else:
@@ -393,7 +411,8 @@ class GTKeditor:
             self.nesrom.puzzles[newtext] = self.nesrom.puzzles[oldtext]
             del self.nesrom.puzzles[oldtext]
             liststore[path][column] = newtext
-            self.displayCurrentPuzzle(self.mainwindow.get_widget(PUZZLE_LIST))
+            self.displayCurrentPuzzle()
+        self.updateCache()
 
     # Save file callback
     def savefile(self, source=None, event=None):
@@ -404,7 +423,7 @@ class GTKeditor:
         filename = filerep + '/' + name
 
         if name == '':
-            self.outputmsg('Provide ame please')
+            self.outputmsg('Provide name please')
 
         elif os.path.exists(filename):
             self.outputmsg('File exists!')
@@ -421,8 +440,7 @@ class GTKeditor:
                     f.write(line)
 
         elif filetype == PNG:
-            treeview = self.mainwindow.get_widget(PUZZLE_LIST)
-            puzzlename = self.getTreeviewSelected(treeview)
+            puzzlename = self.getCurrentPuzzle()
             if self.nesrom == None or puzzlename == None:
                 self.outputmsg('should select something first...')
             else:
@@ -443,7 +461,6 @@ class GTKeditor:
 
         # open dump file
         if filetype == DUMP:
-            # TODO -> move to initFromDumpFile
             with open(filename, 'r') as f:
                 self.nesrom = pickle.load(f)
             self.outputmsg(os.path.basename(filename) +
@@ -466,44 +483,134 @@ class GTKeditor:
         ######################################################
 
         # puts puzzle list in treeview
-        treeview1 = self.mainwindow.get_widget(PUZZLE_LIST)
-        self.putListInTreeview(treeview1, self.nesrom.puzzles.keys(), 'Puzzles')
+        self.updatePuzzleList()
         # clear puzzlelayout
-        puzzlelayout = self.mainwindow.get_widget(PUZZLE_AREA)
-        for child in puzzlelayout.get_children():
-            puzzlelayout.remove(child)
+        for child in self.puzzlearea.get_children():
+            self.puzzlearea.remove(child)
         self.displaySpritZone()
+
+    # callback when showing editbox
+    def updateEditBox(self, area=None, event=None):
+        puzzlename = self.getCurrentPuzzle()
+        if puzzlename != None:
+            currentpuzzle = self.nesrom.puzzles[puzzlename]
+            width = len(currentpuzzle[0])
+            height = len(currentpuzzle)
+            self.editbox.set_size_request(width*8*self.scale, height*8*self.scale)
+            style = self.editbox.get_style()
+            self.gc = gtk.gdk.GC(self.editbox.window)
+            pixbuf = image_to_pixbuf(self.puzzle_to_image(currentpuzzle, self.scale))
+            self.editbox.window.draw_pixbuf(self.gc, pixbuf, 0, 0, 0, 0, -1, -1)
+            self.editbox.window.draw_point(self.gc, 30, 30)
 
 
     # Callback to display current puzzle
-    def displayCurrentPuzzle(self, treeview):
-        puzzlename = self.getTreeviewSelected(treeview)
-        currentpuzzle = self.nesrom.puzzles[puzzlename]
-        self.outputmsg('displaying ' + puzzlename)
-        puzzlearea = self.mainwindow.get_widget(PUZZLE_AREA)
-        for child in puzzlearea.get_children():
-            puzzlearea.remove(child)
-            #child.destroy()
-        width = self.scale*8*len(currentpuzzle[0])
-        height = self.scale*8*len(currentpuzzle)
-        puzzlearea.set_size(width, height)
-        for i,line in enumerate(currentpuzzle):
-            for j, sprnum in enumerate(line):
-                if 0<sprnum<len(self.nesrom.sprList):
-                    self.displaySprite(puzzlearea,
-                                        sprnum,
-                                        self.scale,
-                                        self.scale*8*j,
-                                        self.scale*8*i,
-                                        True, i, j, puzzlename, from_image)
-                else:
-                    self.displaySprite(puzzlearea,
-                                        sprnum,
-                                        self.scale,
-                                        self.scale*8*j,
-                                        self.scale*8*i,
-                                        False, i, j, puzzlename, from_image)
-        puzzlearea.show_all()
+    def displayCurrentPuzzle(self, treeview=None):
+        puzzlename = self.getCurrentPuzzle()
+        if puzzlename != None:
+            currentpuzzle = self.nesrom.puzzles[puzzlename]
+            self.outputmsg('displaying ' + puzzlename)
+            for child in self.puzzlearea.get_children():
+                self.puzzlearea.remove(child)
+            self.puzzlearea.put(self.editbox, 0, 0)
+            width = self.scale*8*len(currentpuzzle[0])
+            height = self.scale*8*len(currentpuzzle)
+            self.puzzlearea.set_size(width, height)
+            for i,line in enumerate(currentpuzzle):
+                for j, sprnum in enumerate(line):
+                    if 0<sprnum<len(self.nesrom.sprList):
+                        eventbox = self.displaySprite(self.puzzlearea,
+                                            sprnum,
+                                            self.scale,
+                                            self.scale*8*j,
+                                            self.scale*8*i,
+                                            True, i, j, puzzlename, from_image)
+                    else:
+                        eventbox = self.displaySprite(self.puzzlearea,
+                                            sprnum,
+                                            self.scale,
+                                            self.scale*8*j,
+                                            self.scale*8*i,
+                                            False, i, j, puzzlename, from_image)
+            if self.editbutton.get_active():
+                for child in self.puzzlearea.get_children():
+                    child.hide()
+                self.editbox.show()
+            else:
+                self.puzzlearea.show_all()
+                self.editbox.hide()
+            # TODO : bin2spr has already been called in displaySprite... redundant
+            self.updateCache()
+
+    # callback when editing sprite
+    def editSprite(self, widget, event):
+        print event.state
+        # verify the edit mode on
+        if self.editbutton.get_active():
+            x,y = event.get_coords()
+            puzzlename = self.getCurrentPuzzle()
+            # verify if a puzzle is selected
+            if puzzlename != None:
+                currentpuzzle = self.nesrom.puzzles[puzzlename]
+                width = len(currentpuzzle[0])
+                height = len(currentpuzzle)
+                if 0<x<width*8*self.scale and 0<y<height*8*self.scale:
+                    # fast version
+                    a, b =  (int(x/self.scale), int(y/self.scale))
+                    i, j = a/8, b/8
+                    u, v = a%8, b%8
+                    sprnum = currentpuzzle[j][i]
+                    colormap = self.editbox.get_colormap()
+                    if (event.state & gtk.gdk.MOD1_MASK):
+                        newval = 3
+                    elif event.state & gtk.gdk.SHIFT_MASK:
+                        newval = 2
+                    elif event.state & gtk.gdk.CONTROL_MASK:
+                        newval = 1
+                    else:
+                        newval = 0
+                    mycolor = colormap.alloc_color(GTKCOLOR[newval], True, True)
+                    mygc = self.editbox.window.new_gc(foreground = mycolor)
+                    if 0<sprnum<len(self.nesrom.sprList):
+                        # change image
+                        for p,line in enumerate(currentpuzzle):
+                            for q,sprnum2 in enumerate(line):
+                                if sprnum == sprnum2:
+                                    self.editbox.window.draw_rectangle(
+                                        mygc,
+                                        True,
+                                        ((q*8)+u)*self.scale,
+                                        ((p*8)+v)*self.scale,
+                                        self.scale, self.scale)
+                        # update cache
+                        self.cache[sprnum][v][u] = newval
+
+                    # slow version
+#                    spr = bin2spr(self.nesrom.sprList[sprnum])
+#                    spr[v][u] = 0
+#                    self.nesrom.sprList[sprnum] = spr2bin(spr)
+#                    self.updateEditBox()
+
+    # callback when toggling the edit button
+    def editModeChange(self, togglebutton):
+        if self.editbutton.get_active():
+            self.outputmsg('edit mode on')
+            # turn to edit mode
+            #self.updateEditBox()
+            for child in self.puzzlearea.get_children():
+                child.hide()
+            self.editbox.show()
+                #child.handler_unblock_by_func(self.editSprite)
+        else:
+            # go back to unedit mode
+            self.flushCache()
+            self.displaySpritZone()
+            self.outputmsg('edit mode off')
+            self.displayCurrentPuzzle()
+            for child in self.puzzlearea.get_children():
+                child.show_all()
+            self.editbox.hide()
+
 
     # callback for sender in Drag&Drop
     def sendImage(self, widget, context, selection, targetType, eventTime):
@@ -552,10 +659,12 @@ class GTKeditor:
     # Define a Widget as Source for Drag&Drop (usually an EventBox)
     def setSourceWidget(self, eventbox, sprnum, pixbuf, flags):
         eventbox.number = sprnum
+        eventbox.pixbuf = pixbuf
         eventbox.connect('drag_data_get', self.sendImage)
         eventbox.drag_source_unset()
-        eventbox.drag_source_set(gtk.gdk.BUTTON1_MASK, flags, gtk.gdk.ACTION_COPY)
-        eventbox.drag_source_set_icon_pixbuf(pixbuf)
+        if not self.editbutton.get_active():
+            eventbox.drag_source_set(gtk.gdk.BUTTON1_MASK, flags, gtk.gdk.ACTION_COPY)
+            eventbox.drag_source_set_icon_pixbuf(pixbuf)
 
     # Define a Widget as Destination for Drag&Drop (usually an EventBox)
     def setDestWidget(self, eventbox, puzzlename, posx, posy):
@@ -570,12 +679,26 @@ class GTKeditor:
     # Displaying methods #
     ######################
 
+    def updateCache(self):
+        puzzlename = self.getCurrentPuzzle()
+        currentpuzzle = self.nesrom.puzzles[puzzlename]
+        self.cache = {}
+        for line in currentpuzzle:
+            for sprnum in line:
+                self.cache[sprnum] = bin2spr(self.nesrom.sprList[sprnum])
+
+    def flushCache(self):
+        puzzlename = self.getCurrentPuzzle()
+        currentpuzzle = self.nesrom.puzzles[puzzlename]
+        for sprnum in self.cache:
+            self.nesrom.sprList[sprnum] = spr2bin(self.cache[sprnum])
+        
+
     def extendCurrentPuzzle(self, flag):
         if self.nesrom == None:
             self.outputmsg('error: open dump or load Rom first')
         else:
-            treeview = self.mainwindow.get_widget(PUZZLE_LIST)
-            puzzlename = self.getTreeviewSelected(treeview)
+            puzzlename = self.getCurrentPuzzle()
             if puzzlename == None:
                 self.outputmsg('error: can\'t add row to puzzle if none is selected')
             else:
@@ -592,7 +715,7 @@ class GTKeditor:
                 else: # flag == LSTCOL:
                     for i,line in enumerate(currentpuzzle):
                         currentpuzzle[i] = line + [-1]
-                self.displayCurrentPuzzle(self.mainwindow.get_widget(PUZZLE_LIST))
+                self.displayCurrentPuzzle()
 
 
 
@@ -600,29 +723,34 @@ class GTKeditor:
     def displaySpritZone(self):
         # variables to be modified later...
         offset = self.nesrom.get_offset()
-        # get the spritlayout
-        spritlayout = self.mainwindow.get_widget(SPRITE_AREA)
         # delete everything in it !
-        for child in spritlayout.get_children():
-            spritlayout.remove(child)
+        for child in self.spritearea.get_children():
+            self.spritearea.remove(child)
         # initialize size variables
         if (self.currentZone < offset or
                 self.currentZone> len(self.nesrom.sprList)):
             self.currentZone = offset
         maxspr = min(self.currentZone+self.length*self.perline, len(self.nesrom.sprList))
-        spritlayout.set_size(self.perline*self.scale*8,
+        self.spritearea.set_size(self.perline*self.scale*8,
             (maxspr-self.currentZone)*8*self.scale/self.perline)
         # now let's draw !
         for sprnum in range(self.currentZone, maxspr):
             eventbox = gtk.EventBox()
             pixbuf = self.putSprInWidget(eventbox, sprnum, self.scale)
+            eventbox.pixbuf = pixbuf
             self.setSourceWidget(eventbox, sprnum, pixbuf, to_image)
             index = sprnum - self.currentZone
-            spritlayout.put(eventbox,
+            self.spritearea.put(eventbox,
                             8*self.scale*(index - self.perline*(index/self.perline)),
                             self.scale*8*(index/self.perline))
-        spritlayout.show_all()
+        self.spritearea.show_all()
 
+
+    # update puzzlelist
+    def updatePuzzleList(self):
+        self.putListInTreeview(self.puzzlelist_treeview,
+                                self.nesrom.puzzles.keys(),
+                                'Puzzles')
 
     # write a list in a Treeview Widget
     def putListInTreeview(self, treeview, mylist, title,
@@ -647,6 +775,10 @@ class GTKeditor:
         for x in mylist:
             liststore.append([x])
 
+    # get current puzzle
+    def getCurrentPuzzle(self):
+        return self.getTreeviewSelected(self.puzzlelist_treeview)
+
     # get selected value in a Treeview Widget
     def getTreeviewSelected(self, treeview):
         treeselection = treeview.get_selection()
@@ -658,9 +790,8 @@ class GTKeditor:
 
     # general method for outputing a message in the statusbar
     def outputmsg(self, message):
-        statusbar = self.mainwindow.get_widget(STATUS_BAR)
-        cid = statusbar.get_context_id('Messages')
-        statusbar.push(cid, message)
+        cid = self.statusbar.get_context_id('Messages')
+        self.statusbar.push(cid, message)
 
     # Print a sprite in a Widget (usually an EventBox)
     def putSprInWidget(self, eventbox, sprnum, scale=1):
@@ -676,11 +807,10 @@ class GTKeditor:
         return pixbuf
 
     # Turns a puzzle into an Image
-    # only used to save puzzles !
     def puzzle_to_image(self,puzzle, scale=1):
         width, height = len(puzzle[0]), len(puzzle)
         # save to temp file
-        im = Image.new('RGB',(8*width,8*height))
+        im = Image.new('RGBA',(scale*8*width,scale*8*height), (0,0,0,34))
         pix = im.load()
         for i,sprLine in enumerate(puzzle):
             for j,sprnumber in enumerate(sprLine):
@@ -688,21 +818,25 @@ class GTKeditor:
                     for x,line in enumerate(
                         bin2spr(self.nesrom.sprList[sprnumber])):
                         for y,pixel in enumerate(line):
-                            pix[(8*j+y),(8*i+x)] = COLOR[pixel]
-        im2 = im.resize((8*scale*width,8*scale*height), Image.NEAREST)
-        return im2
+                            for a in range(scale):
+                                for b in range(scale):
+                                    pix[a+scale*(8*j+y),b+scale*(8*i+x)] = COLOR[pixel]
+        return im
 
     # Displays a sprite in a widget
-    def displaySprite(self, puzzlearea, sprnum, scale, x, y, 
+    def displaySprite(self, widget, sprnum, scale, x, y, 
                          # infos for late instanciation
                         source, posx, posy, puzzlename, flags):
         eventbox = gtk.EventBox()
         # get pixbuf for icon of sourcewidget
         pixbuf = self.putSprInWidget(eventbox, sprnum, scale)
+        eventbox.pixbuf = pixbuf
         self.setDestWidget(eventbox, puzzlename, posx, posy)
         if source:
             self.setSourceWidget(eventbox, sprnum, pixbuf, flags)
-        puzzlearea.put(eventbox, x, y)
+        widget.put(eventbox, x, y)
+        return eventbox
+
  
 ###################################
 # launch editor from command line #
@@ -712,12 +846,3 @@ if __name__ == '__main__':
     app = GTKeditor()
     gtk.main()
 
-# for benchmarks
-#    nesrom = Nesrom()
-#    nesrom.import_rom('mario2.nes')
-#    print len(nesrom.sprList)
-##    for binspr in nesrom.sprList:
-#    binspr = nesrom.sprList[2049]
-#    spr = bin2spr(binspr)
-#    pixbuf = spr2pixbuf(spr, 6)
-#    pa = pixbuf.get_pixels_array

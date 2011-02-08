@@ -215,6 +215,7 @@
                     <child>
                       <widget class="GtkToolbar" id="toolbar1">
                         <property name="visible">True</property>
+                        <property name="icon_size">1</property>
                         <child>
                           <widget class="GtkToolButton" id="toolbutton1">
                             <property name="visible">True</property>
@@ -279,6 +280,8 @@
                         <child>
                           <widget class="GtkToolbar" id="toolbar2">
                             <property name="visible">True</property>
+                            <property name="icon_size">1</property>
+                            <property name="icon_size_set">True</property>
                             <child>
                               <widget class="GtkToolButton" id="toolbutton3">
                                 <property name="visible">True</property>
@@ -367,6 +370,19 @@
                                 <property name="homogeneous">True</property>
                               </packing>
                             </child>
+                            <child>
+                              <widget class="GtkToggleToolButton" id="toolbutton8">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">Edit</property>
+                                <property name="use_underline">True</property>
+                                <property name="stock_id">gtk-edit</property>
+                                <signal name="toggled" handler="editModeChange"/>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="homogeneous">True</property>
+                              </packing>
+                            </child>
                           </widget>
                           <packing>
                             <property name="expand">False</property>
@@ -401,6 +417,7 @@
                         <child>
                           <widget class="GtkToolbar" id="toolbar3">
                             <property name="visible">True</property>
+                            <property name="icon_size">1</property>
                             <child>
                               <widget class="GtkToolButton" id="toolbutton5">
                                 <property name="visible">True</property>
